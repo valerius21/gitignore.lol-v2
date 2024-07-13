@@ -2,7 +2,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_utilities import repeat_every
+from fastapi_cache.decorator import cache
+
 from git import Repo
 
 REPO_URL = "https://github.com/github/gitignore.git"
@@ -14,6 +18,7 @@ app = FastAPI()
 @app.on_event('startup')
 @repeat_every(seconds=60 * 60 * 24)
 async def update_repository():
+    FastAPICache.init(InMemoryBackend())
     repo_path = Path(REPO_DIR)
     if repo_path.exists():
         repo = Repo(REPO_DIR)
@@ -23,12 +28,14 @@ async def update_repository():
 
 
 @app.get("/")
+@cache(expire=300)
 async def root():
     files = await get_file_list()
     return {"available": f.replace(".gitignore", "") for f in files}
 
 
 @app.get('/{lang}')
+@cache(expire=300)
 async def get_language_ignore_file(lang: str):
     lang = lang.lower()
     repo_path = Path(REPO_DIR)
