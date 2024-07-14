@@ -12,6 +12,27 @@ from git import Repo
 REPO_URL = "https://github.com/github/gitignore.git"
 REPO_DIR = "ignore_files"
 
+IDEA_STRING = '''#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+.idea/'''
+
+JETBRAINS_STRINGS = [
+    'idea',
+    'pycharm',
+    'webstorm',
+    'phpstorm',
+    'rider',
+    'goland',
+    'intellij',
+    'appcode',
+    'clion',
+    'datagrip',
+    'resharper',
+    'rustrover',
+]
+
 app = FastAPI()
 
 
@@ -35,7 +56,6 @@ async def root():
 
 
 @app.get('/{languages}')
-@cache(expire=300)
 async def get_language_ignore_file(languages: str):
     langs = languages.lower().strip()
     if ',' in langs:
@@ -58,6 +78,7 @@ async def get_language_ignore_file(languages: str):
     return PlainTextResponse(joined_contents, media_type='text/plain')
 
 
+@cache(expire=300)
 async def get_file_list():
     repo_path = await check_repository()
     if repo_path is None:
@@ -82,6 +103,8 @@ async def check_repository() -> Path | None:
 
 @cache(expire=300)
 async def get_file_contents(lang: str, repo_path: Path, file_list: List[str]) -> str:
+    if lang in JETBRAINS_STRINGS:
+        return IDEA_STRING
     if '.gitignore' not in lang:
         lang += '.gitignore'
     if lang not in file_list:
@@ -92,6 +115,7 @@ async def get_file_contents(lang: str, repo_path: Path, file_list: List[str]) ->
         return f'# ------------- {lang.capitalize()} -------------\n\n' + content
 
 
+@cache(expire=300)
 async def post_process_contents(contents: List[str]) -> str:
     joined_contents = '\n'.join(contents)
     lines = joined_contents.splitlines()
