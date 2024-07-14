@@ -55,6 +55,12 @@ async def root():
     return {"available": [f.replace(".gitignore", "") for f in files]}
 
 
+@app.get('/readyz')
+async def readyz():
+    """health check"""
+    return {"status": "ok"}
+
+
 @app.get('/{languages}')
 async def get_language_ignore_file(languages: str):
     langs = languages.lower().strip()
