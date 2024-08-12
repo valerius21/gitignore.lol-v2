@@ -9,3 +9,18 @@ GET http://127.0.0.1:8000/lua,node
 Accept: application/json
 
 ###
+
+GET http://127.0.0.1:8000/available
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/lua
+Accept: text/plain
+
+###
+
+GET http://127.0.0.1:8000/readyz
+Accept: text/plain
+
+###

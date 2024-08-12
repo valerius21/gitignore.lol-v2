@@ -2,12 +2,13 @@ from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache.decorator import cache
 from fastapi_utilities import repeat_every
 from git import Repo
+from fastapi.requests import Request
 
 REPO_URL = "https://github.com/github/gitignore.git"
 REPO_DIR = "ignore_files"
@@ -33,7 +34,19 @@ JETBRAINS_STRINGS = [
     'rustrover',
 ]
 
-app = FastAPI()
+app = FastAPI(
+    title="gitignore.lol",
+    description="Get the contents of a language's gitignore file. You can provide multiple languages separated by "
+                "commas. Request <a href=\"https://gitignore.lol/available\">https://gitignore.lol/available</a> to get a "
+                "list of available languages.<br><br>"
+                "Example: <a href=\"https://gitignore.lol/python,node,idea\">https://gitignore.lol/python,node,idea</a>"
+                "<br><br>Consider contributing to the project on <a href=\"https://github.com/valerius21/gitignore.lol-v2\">"
+                "GitHub</a>."
+                "<br><br> Ignore files are sourced from <a href=\"https://github.com/github/gitignore\">GitHub/gitignore</a>.",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 
 
 @app.on_event('startup')
@@ -48,21 +61,52 @@ async def update_repository():
         Repo.clone_from(REPO_URL, REPO_DIR)
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 @cache(expire=300)
-async def root():
-    files = await get_file_list()
-    return {"available": [f.replace(".gitignore", "") for f in files]}
+async def root(request: Request):
+    # redirect to /docs, if it is a browser
+    redirect_agents = [
+        'Mozilla',
+        'Opera',
+        'Chrome',
+        'Safari',
+        'Edge',
+        'Firefox',
+        'MSIE',
+    ]
 
+    if partial_string_in_list(request.headers['user-agent'], redirect_agents):
+        return RedirectResponse("/docs", status_code=302)
 
-@app.get('/readyz')
+    return await list_of_available_languages()
+
+def partial_string_in_list(partial_string: str, list_of_strings: List[str]) -> bool:
+    for string in list_of_strings:
+        if string in partial_string:
+            return True
+    return False
+
+@app.get('/readyz', include_in_schema=False)
 async def readyz():
     """health check"""
     return {"status": "ok"}
 
 
+@app.get('/available')
+async def list_of_available_languages():
+    """Get a list of available languages"""
+    files = await get_file_list()
+    return {"available": [f.replace(".gitignore", "") for f in files]}
+
+
 @app.get('/{languages}')
 async def get_language_ignore_file(languages: str):
+    """Get the contents of a language's gitignore file. You can provide multiple languages separated by commas.
+    Request <pre>https://gitignore.lol/available</pre> to get a list of available languages.
+
+
+    Example: <pre>https://gitignore.lol/python,node,idea</pre>
+    """
     langs = languages.lower().strip()
     if ',' in langs:
         langs = langs.split(',')
